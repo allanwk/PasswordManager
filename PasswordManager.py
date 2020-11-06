@@ -5,6 +5,8 @@ from cryptography.fernet import Fernet
 from pyperclip import copy
 import re
 from time import sleep
+import random
+import string
 
 pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
 info = {}
@@ -53,7 +55,7 @@ class Window(QMainWindow):
         self.label_5.setObjectName("label_5")
         self.label_5.setText("Registrar senhas")
         self.pushButton = QtWidgets.QPushButton(self)
-        self.pushButton.setGeometry(QtCore.QRect(300, 180, 75, 23))
+        self.pushButton.setGeometry(QtCore.QRect(300, 210, 111, 23))
         self.pushButton.setObjectName("pushButton")
         self.pushButton.setText("Adicionar")
         self.pushButton.clicked.connect(self.add_item)
@@ -61,6 +63,10 @@ class Window(QMainWindow):
         self.pushButtonDelete.setGeometry(QtCore.QRect(10, 230, 135, 23))
         self.pushButtonDelete.setText("Remover item selecionado")
         self.pushButtonDelete.clicked.connect(self.remove_item)
+        self.pushButtonGenerate = QtWidgets.QPushButton(self)
+        self.pushButtonGenerate.setGeometry(QtCore.QRect(300, 180, 111, 23))
+        self.pushButtonGenerate.setText("Gerar senha forte")
+        self.pushButtonGenerate.clicked.connect(self.generate_password)
 
     def updateList(self):
         self.listWidget.clear()
@@ -101,6 +107,32 @@ class Window(QMainWindow):
         msg.setWindowTitle("Info")
         msg.exec_()
 
+    def generate_password(self):
+        symbols = '!@#$%&*'
+        generate_pass = ''.join([random.choice(  
+                        string.ascii_letters + string.digits + symbols)  
+                        for n in range(15)])  
+ 
+        hasNumber = False
+        hasUpper = False
+        hasLower = False
+        hasSymbol = False
+    
+        for letter in generate_pass:
+            if letter in string.digits:
+                hasNumber = True
+            if letter in string.ascii_lowercase:
+                hasLower = True
+            if letter in string.ascii_uppercase:
+                hasUpper = True
+            if letter in symbols:
+                hasSymbol = True              
+        if hasNumber and hasUpper and hasLower and hasSymbol:
+            self.passwordTextBox.setText(generate_pass)
+        else:
+            self.generate_password()
+
+            
 try:
     f = open("F:/text.txt", "r")
     key = f.readline().encode()
