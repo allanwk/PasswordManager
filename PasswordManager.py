@@ -1,0 +1,128 @@
+from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
+import sys
+from cryptography.fernet import Fernet
+from pyperclip import copy
+import re
+from time import sleep
+
+pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
+info = {}
+key = ""
+
+class Window(QMainWindow):
+    def __init__(self):
+        super(Window, self).__init__()
+        self.setGeometry(200,200,435,275)
+        self.setWindowTitle("Gerenciador de senhas")
+        self.initUI()
+        self.updateList()
+
+    def initUI(self):
+        self.listWidget = QtWidgets.QListWidget(self)
+        self.listWidget.setGeometry(QtCore.QRect(10, 30, 256, 192))
+        self.listWidget.setObjectName("listWidget")
+        self.listWidget.itemDoubleClicked.connect(self.copy_password)
+        self.passwordTextBox = QtWidgets.QLineEdit(self)
+        self.passwordTextBox.setGeometry(QtCore.QRect(300, 100, 113, 20))
+        self.passwordTextBox.setObjectName("passwordTextBox")
+        self.userTextBox = QtWidgets.QLineEdit(self)
+        self.userTextBox.setGeometry(QtCore.QRect(300, 50, 113, 20))
+        self.userTextBox.setObjectName("userTextBox")
+        self.siteTextBox = QtWidgets.QLineEdit(self)
+        self.siteTextBox.setGeometry(QtCore.QRect(300, 150, 113, 20))
+        self.siteTextBox.setObjectName("siteTextBox")
+        self.label = QtWidgets.QLabel(self)
+        self.label.setGeometry(QtCore.QRect(300, 30, 47, 13))
+        self.label.setObjectName("label")
+        self.label.setText("Usuário")
+        self.label_2 = QtWidgets.QLabel(self)
+        self.label_2.setGeometry(QtCore.QRect(300, 80, 47, 13))
+        self.label_2.setObjectName("label_2")
+        self.label_2.setText("Senha")
+        self.label_3 = QtWidgets.QLabel(self)
+        self.label_3.setGeometry(QtCore.QRect(300, 130, 47, 13))
+        self.label_3.setObjectName("label_3")
+        self.label_3.setText("Site")
+        self.label_4 = QtWidgets.QLabel(self)
+        self.label_4.setGeometry(QtCore.QRect(10, 10, 251, 16))
+        self.label_4.setObjectName("label_4")
+        self.label_4.setText("Senhas Disponíveis - Clique duplo")
+        self.label_5 = QtWidgets.QLabel(self)
+        self.label_5.setGeometry(QtCore.QRect(300, 10, 115, 16))
+        self.label_5.setObjectName("label_5")
+        self.label_5.setText("Registrar senhas")
+        self.pushButton = QtWidgets.QPushButton(self)
+        self.pushButton.setGeometry(QtCore.QRect(300, 180, 75, 23))
+        self.pushButton.setObjectName("pushButton")
+        self.pushButton.setText("Adicionar")
+        self.pushButton.clicked.connect(self.add_item)
+        self.pushButtonDelete = QtWidgets.QPushButton(self)
+        self.pushButtonDelete.setGeometry(QtCore.QRect(10, 230, 135, 23))
+        self.pushButtonDelete.setText("Remover item selecionado")
+        self.pushButtonDelete.clicked.connect(self.remove_item)
+
+    def updateList(self):
+        self.listWidget.clear()
+        for key in info:
+            item = QListWidgetItem(key)
+            self.listWidget.addItem(item)
+        
+    def updateFile(self):
+        with open("data.txt", "w+") as data:
+            lines = [str(Fernet(key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
+            data.writelines(lines)
+
+    def copy_password(self):
+        copy(info[self.listWidget.currentItem().text()][0])
+        self.showMessageDialog("Senha copiada para a área de transferência.")
+
+    def remove_item(self):
+        info.pop(self.listWidget.currentItem().text(), None)
+        self.updateList()
+        self.updateFile()
+        self.showMessageDialog("Senha removida com sucesso.")
+
+    def add_item(self):
+        user = self.userTextBox.text()
+        password = self.passwordTextBox.text()
+        site = self.siteTextBox.text()
+        if site not in info:
+            info[site] = (password, user)
+            self.updateList()
+            self.updateFile()
+            self.showMessageDialog("Senha adicionada com sucesso.")
+        else:
+            self.showMessageDialog("Já existe um registro para esse site.")
+
+    def showMessageDialog(self, message):
+        msg = QtWidgets.QMessageBox()
+        msg.setText(message)
+        msg.setWindowTitle("Info")
+        msg.exec_()
+
+try:
+    f = open("F:/text.txt", "r")
+    key = f.readline().encode()
+    f.close()
+except:
+    print("Chave de acesso inválida")
+    sys.exit(0)
+
+def main():
+    with open("data.txt", "r") as data:
+        for line in data:
+            dec = Fernet(key).decrypt(bytes(line[2:-1], 'utf-8'))
+            res = re.search(pattern, str(dec))
+            try:
+                info[res.group(3)] = (res.group(1), res.group(2))
+            except:
+                pass
+
+    app = QApplication(sys.argv)
+    win = Window()
+    win.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
