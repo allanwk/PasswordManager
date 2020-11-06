@@ -1,22 +1,31 @@
+#Dependencias para a GUI
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
 import sys
+
+#Dependencias para gerenciamento das senhas
 from cryptography.fernet import Fernet
 from pyperclip import copy
 import re
 from time import sleep
 import random
 import string
-import pickle
+
+#Dependencias Google Drive API
 import os.path
 import os
+import pickle
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from dotenv import load_dotenv
 
+"""Padrao para identificar site, senha e usuario no arquivo
+data apos descriptografado"""
 pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
+
+#Dicionario para armazenar as informacoes de senhas
 info = {}
 
 #Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets)
@@ -32,6 +41,7 @@ class Window(QMainWindow):
     """
     
     def __init__(self, drive_service, key):
+        """Inicialização da janela principal"""
         super(Window, self).__init__()
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
@@ -43,12 +53,15 @@ class Window(QMainWindow):
         else:
             self.setWindowTitle("Chave de acesso inválida!")
 
-    #Método para criar os elementos da interface gráfica
     def initUI(self):
+        """Inicialização dos elementos da interface gráfica"""
+        #Lista
         self.listWidget = QtWidgets.QListWidget(self)
         self.listWidget.setGeometry(QtCore.QRect(10, 30, 256, 192))
         self.listWidget.setObjectName("listWidget")
         self.listWidget.itemDoubleClicked.connect(self.copy_password)
+
+        #Caixas de texto
         self.passwordTextBox = QtWidgets.QLineEdit(self)
         self.passwordTextBox.setGeometry(QtCore.QRect(300, 100, 113, 20))
         self.passwordTextBox.setObjectName("passwordTextBox")
@@ -58,6 +71,8 @@ class Window(QMainWindow):
         self.siteTextBox = QtWidgets.QLineEdit(self)
         self.siteTextBox.setGeometry(QtCore.QRect(300, 150, 113, 20))
         self.siteTextBox.setObjectName("siteTextBox")
+
+        #Labels
         self.label = QtWidgets.QLabel(self)
         self.label.setGeometry(QtCore.QRect(300, 30, 47, 13))
         self.label.setObjectName("label")
@@ -78,6 +93,8 @@ class Window(QMainWindow):
         self.label_5.setGeometry(QtCore.QRect(300, 10, 115, 16))
         self.label_5.setObjectName("label_5")
         self.label_5.setText("Registrar senhas")
+
+        #Botões
         self.pushButton = QtWidgets.QPushButton(self)
         self.pushButton.setGeometry(QtCore.QRect(300, 210, 111, 23))
         self.pushButton.setObjectName("pushButton")
@@ -92,15 +109,16 @@ class Window(QMainWindow):
         self.pushButtonGenerate.setText("Gerar senha forte")
         self.pushButtonGenerate.clicked.connect(self.generate_password)
 
-    #Atualizar a visualização da lista de senhas
     def updateList(self):
+        """Atualizar a visualização da lista de senhas"""
         self.listWidget.clear()
         for dict_key in info:
             item = QListWidgetItem(dict_key)
             self.listWidget.addItem(item)
         
-    #Atualizar o arquivo que armazena as senhas
     def updateFile(self):
+        """Atualizar o arquivo que armazena as senhas e fazer o backup
+        no Google Drive"""
         if self.key != 0:
             with open("data.txt", "w+") as data:
                 lines = [str(Fernet(self.key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
@@ -111,20 +129,20 @@ class Window(QMainWindow):
                                         fileId=DATA_FILE_ID,
                                         fields='id').execute()
 
-    #Copiar a senha selecionada para a área de tranferência
     def copy_password(self):
+        """Copiar a senha selecionada para a área de tranferência"""
         copy(info[self.listWidget.currentItem().text()][0])
         self.showMessageDialog("Senha copiada para a área de transferência.")
 
-    #Remover senha da lista de senhas salvas
     def remove_item(self):
+        """Remover senha da lista de senhas salvas"""
         info.pop(self.listWidget.currentItem().text(), None)
         self.updateList()
         self.updateFile()
         self.showMessageDialog("Senha removida com sucesso.")
 
-    #Adicionar nova senha a lista
     def add_item(self):
+        """Adicionar nova senha a lista"""
         user = self.userTextBox.text()
         password = self.passwordTextBox.text()
         site = self.siteTextBox.text()
@@ -133,18 +151,21 @@ class Window(QMainWindow):
             self.updateList()
             self.updateFile()
             self.showMessageDialog("Senha adicionada com sucesso.")
+            passwordTextBox.setText("")
+            userTextBox.setText("")
+            siteTextBox.setText("")
         else:
             self.showMessageDialog("Já existe um registro para esse site.")
 
-    #Método helper para mostrar caixas de diálogo
     def showMessageDialog(self, message):
+        """Método helper para mostrar caixas de diálogo"""
         msg = QtWidgets.QMessageBox()
         msg.setText(message)
         msg.setWindowTitle("Info")
         msg.exec_()
 
-    #Gerador de senhas fortes (15 caracteres)
     def generate_password(self):
+        """Gerador de senhas fortes (15 caracteres)"""
         symbols = '!@#$%&*'
         generate_pass = ''.join([random.choice(  
                         string.ascii_letters + string.digits + symbols)  
@@ -169,16 +190,12 @@ class Window(QMainWindow):
         else:
             self.generate_password()
 
-"""Buscando chave de acesso no token (pen drive)
-Caso não seja encontrada, a chave recebe o valor 0, invalidando qualquer
-operação na GUI.
-"""
-
-
 
 def main():
-    """Caso nao seja encontrada uma chave de acesso valida, a chave sera definida como 0,
-    e o servico do drive como None, invalidando qualquer operacao"""
+    """Buscando chave de acesso no token (pen drive)
+    Caso não seja encontrada, a chave recebe o valor 0, e o drive_service None, 
+    invalidando qualquer operação na GUI.
+    """
     try:
         f = open("F:/text.txt", "r")
         key = f.readline().encode()
