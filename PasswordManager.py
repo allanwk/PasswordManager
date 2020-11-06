@@ -13,13 +13,21 @@ info = {}
 key = ""
 
 class Window(QMainWindow):
+    """Classe janela para a GUI. Caso não seja provida a chave de acesso válida,
+    a GUI renderiza apenas uma janela vazia, não permitindo operações.
+    """
+    
     def __init__(self):
         super(Window, self).__init__()
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
-        self.initUI()
-        self.updateList()
+        if key != 0:
+            self.initUI()
+            self.updateList()
+        else:
+            self.setWindowTitle("Chave de acesso inválida!")
 
+    #Método para criar os elementos da interface gráfica
     def initUI(self):
         self.listWidget = QtWidgets.QListWidget(self)
         self.listWidget.setGeometry(QtCore.QRect(10, 30, 256, 192))
@@ -68,27 +76,33 @@ class Window(QMainWindow):
         self.pushButtonGenerate.setText("Gerar senha forte")
         self.pushButtonGenerate.clicked.connect(self.generate_password)
 
+    #Atualizar a visualização da lista de senhas
     def updateList(self):
         self.listWidget.clear()
         for key in info:
             item = QListWidgetItem(key)
             self.listWidget.addItem(item)
         
+    #Atualizar o arquivo que armazena as senhas
     def updateFile(self):
-        with open("data.txt", "w+") as data:
-            lines = [str(Fernet(key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
-            data.writelines(lines)
+        if key != 0:
+            with open("data.txt", "w+") as data:
+                lines = [str(Fernet(key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
+                data.writelines(lines)
 
+    #Copiar a senha selecionada para a área de tranferência
     def copy_password(self):
         copy(info[self.listWidget.currentItem().text()][0])
         self.showMessageDialog("Senha copiada para a área de transferência.")
 
+    #Remover senha da lista de senhas salvas
     def remove_item(self):
         info.pop(self.listWidget.currentItem().text(), None)
         self.updateList()
         self.updateFile()
         self.showMessageDialog("Senha removida com sucesso.")
 
+    #Adicionar nova senha a lista
     def add_item(self):
         user = self.userTextBox.text()
         password = self.passwordTextBox.text()
@@ -101,12 +115,14 @@ class Window(QMainWindow):
         else:
             self.showMessageDialog("Já existe um registro para esse site.")
 
+    #Método helper para mostrar caixas de diálogo
     def showMessageDialog(self, message):
         msg = QtWidgets.QMessageBox()
         msg.setText(message)
         msg.setWindowTitle("Info")
         msg.exec_()
 
+    #Gerador de senhas fortes (15 caracteres)
     def generate_password(self):
         symbols = '!@#$%&*'
         generate_pass = ''.join([random.choice(  
@@ -132,25 +148,30 @@ class Window(QMainWindow):
         else:
             self.generate_password()
 
-            
+"""Buscando chave de acesso no token (pen drive)
+Caso não seja encontrada, a chave recebe o valor 0, invalidando qualquer
+operação na GUI.
+"""
 try:
     f = open("F:/text.txt", "r")
     key = f.readline().encode()
     f.close()
 except:
-    print("Chave de acesso inválida")
-    sys.exit(0)
+    key = 0
 
+#Informações descriptografadas são salvas no dicionário info
 def main():
-    with open("data.txt", "r") as data:
-        for line in data:
-            dec = Fernet(key).decrypt(bytes(line[2:-1], 'utf-8'))
-            res = re.search(pattern, str(dec))
-            try:
-                info[res.group(3)] = (res.group(1), res.group(2))
-            except:
-                pass
+    if key != 0:
+        with open("data.txt", "r") as data:
+            for line in data:
+                dec = Fernet(key).decrypt(bytes(line[2:-1], 'utf-8'))
+                res = re.search(pattern, str(dec))
+                try:
+                    info[res.group(3)] = (res.group(1), res.group(2))
+                except:
+                    pass
 
+    #Instanciação da GUI
     app = QApplication(sys.argv)
     win = Window()
     win.show()
