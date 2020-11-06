@@ -1,2 +1,7 @@
 data.txt
 *.ui
+*.exe
+__pycache__/
+.env
+*.json
+*.pickle

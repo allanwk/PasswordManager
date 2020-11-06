@@ -7,21 +7,37 @@ import re
 from time import sleep
 import random
 import string
+import pickle
+import os.path
+import os
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from dotenv import load_dotenv
 
 pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
 info = {}
-key = ""
+
+#Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets)
+load_dotenv()
+DATA_FILE_ID = os.environ.get("DATA_FILE_ID")
+
+#Escopos de autorização da API do Google Drive
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
 class Window(QMainWindow):
     """Classe janela para a GUI. Caso não seja provida a chave de acesso válida,
     a GUI renderiza apenas uma janela vazia, não permitindo operações.
     """
     
-    def __init__(self):
+    def __init__(self, drive_service, key):
         super(Window, self).__init__()
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
-        if key != 0:
+        self.key = key
+        if self.key != 0:
+            self.drive_service = drive_service
             self.initUI()
             self.updateList()
         else:
@@ -79,16 +95,21 @@ class Window(QMainWindow):
     #Atualizar a visualização da lista de senhas
     def updateList(self):
         self.listWidget.clear()
-        for key in info:
-            item = QListWidgetItem(key)
+        for dict_key in info:
+            item = QListWidgetItem(dict_key)
             self.listWidget.addItem(item)
         
     #Atualizar o arquivo que armazena as senhas
     def updateFile(self):
-        if key != 0:
+        if self.key != 0:
             with open("data.txt", "w+") as data:
-                lines = [str(Fernet(key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
+                lines = [str(Fernet(self.key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
                 data.writelines(lines)
+            media = MediaFileUpload("./data.txt")
+            file = self.drive_service.files().update(
+                                        media_body=media,
+                                        fileId=DATA_FILE_ID,
+                                        fields='id').execute()
 
     #Copiar a senha selecionada para a área de tranferência
     def copy_password(self):
@@ -152,15 +173,21 @@ class Window(QMainWindow):
 Caso não seja encontrada, a chave recebe o valor 0, invalidando qualquer
 operação na GUI.
 """
-try:
-    f = open("F:/text.txt", "r")
-    key = f.readline().encode()
-    f.close()
-except:
-    key = 0
 
-#Informações descriptografadas são salvas no dicionário info
+
+
 def main():
+    """Caso nao seja encontrada uma chave de acesso valida, a chave sera definida como 0,
+    e o servico do drive como None, invalidando qualquer operacao"""
+    try:
+        f = open("F:/text.txt", "r")
+        key = f.readline().encode()
+        f.close()
+    except:
+        key = 0
+        drive_service = None
+
+    #Informações descriptografadas são salvas no dicionário info
     if key != 0:
         with open("data.txt", "r") as data:
             for line in data:
@@ -170,10 +197,27 @@ def main():
                     info[res.group(3)] = (res.group(1), res.group(2))
                 except:
                     pass
+        #Autenticacao utilizando credenciais no arquivo JSON ou arquivo PICKLE
+        creds = None
+        if os.path.exists('token.pickle'):
+            with open('token.pickle', 'rb') as token:
+                creds = pickle.load(token)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+            with open('token.pickle', 'wb') as token:
+                pickle.dump(creds, token)
+
+        #Autenticação google drive
+        drive_service = build('drive', 'v3', credentials=creds)
 
     #Instanciação da GUI
     app = QApplication(sys.argv)
-    win = Window()
+    win = Window(drive_service, key)
     win.show()
     sys.exit(app.exec_())
 
