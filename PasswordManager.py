@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #Dependencias para a GUI
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
@@ -28,9 +29,11 @@ pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
 #Dicionario para armazenar as informacoes de senhas
 info = {}
 
-#Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets)
+#Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets),
+#caminho do projeto
 load_dotenv()
 DATA_FILE_ID = os.environ.get("DATA_FILE_ID")
+PROJECT_DIR = os.environ.get("PROJECT_DIR")
 
 #Escopos de autorização da API do Google Drive
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -120,10 +123,10 @@ class Window(QMainWindow):
         """Atualizar o arquivo que armazena as senhas e fazer o backup
         no Google Drive"""
         if self.key != 0:
-            with open("data.txt", "w+") as data:
+            with open(PROJECT_DIR + '/data.txt', "w+") as data:
                 lines = [str(Fernet(self.key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
                 data.writelines(lines)
-            media = MediaFileUpload("./data.txt")
+            media = MediaFileUpload(PROJECT_DIR + '/data.txt')
             file = self.drive_service.files().update(
                                         media_body=media,
                                         fileId=DATA_FILE_ID,
@@ -151,9 +154,9 @@ class Window(QMainWindow):
             self.updateList()
             self.updateFile()
             self.showMessageDialog("Senha adicionada com sucesso.")
-            passwordTextBox.setText("")
-            userTextBox.setText("")
-            siteTextBox.setText("")
+            self.passwordTextBox.setText("")
+            self.userTextBox.setText("")
+            self.siteTextBox.setText("")
         else:
             self.showMessageDialog("Já existe um registro para esse site.")
 
@@ -197,7 +200,7 @@ def main():
     invalidando qualquer operação na GUI.
     """
     try:
-        f = open("F:/text.txt", "r")
+        f = open("/media/allan/KINGSTON/text.txt", "r")
         key = f.readline().encode()
         f.close()
     except:
@@ -206,7 +209,7 @@ def main():
 
     #Informações descriptografadas são salvas no dicionário info
     if key != 0:
-        with open("data.txt", "r") as data:
+        with open(PROJECT_DIR + '/data.txt', "r") as data:
             for line in data:
                 dec = Fernet(key).decrypt(bytes(line[2:-1], 'utf-8'))
                 res = re.search(pattern, str(dec))
@@ -216,17 +219,17 @@ def main():
                     pass
         #Autenticacao utilizando credenciais no arquivo JSON ou arquivo PICKLE
         creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
+        if os.path.exists(PROJECT_DIR + '/token.pickle'):
+            with open(PROJECT_DIR + '/token.pickle', 'rb') as token:
                 creds = pickle.load(token)
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    'credentials.json', SCOPES)
+                    PROJECT_DIR + '/credentials.json', SCOPES)
                 creds = flow.run_local_server(port=0)
-            with open('token.pickle', 'wb') as token:
+            with open(PROJECT_DIR + '/token.pickle', 'wb') as token:
                 pickle.dump(creds, token)
 
         #Autenticação google drive
