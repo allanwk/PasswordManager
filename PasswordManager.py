@@ -15,8 +15,9 @@ import string
 import os.path
 import os
 import pickle
+import io
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from dotenv import load_dotenv
@@ -40,12 +41,13 @@ class Window(QMainWindow):
     a GUI renderiza apenas uma janela vazia, não permitindo operações.
     """
     
-    def __init__(self, drive_service, key):
+    def __init__(self, drive_service, key, connected):
         """Inicialização da janela principal"""
         super(Window, self).__init__()
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
         self.key = key
+        self.connected = connected
         if self.key != 0:
             self.drive_service = drive_service
             self.initUI()
@@ -120,10 +122,11 @@ class Window(QMainWindow):
         """Atualizar o arquivo que armazena as senhas e fazer o backup
         no Google Drive"""
         if self.key != 0:
-            with open("data.txt", "w+") as data:
-                lines = [str(Fernet(self.key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8'))) + "\n" for site, value in info.items()]
+            with open("data", "w+") as data:
+                lines = [Fernet(self.key).encrypt(bytes("{},{},{}".format(value[0], value[1], site), 'utf-8')).decode('utf-8') + "\n" for site, value in info.items()]
                 data.writelines(lines)
-            media = MediaFileUpload("./data.txt")
+            
+            media = MediaFileUpload("./data")
             file = self.drive_service.files().update(
                                         media_body=media,
                                         fileId=DATA_FILE_ID,
@@ -136,6 +139,9 @@ class Window(QMainWindow):
 
     def remove_item(self):
         """Remover senha da lista de senhas salvas"""
+        if not self.connected:
+            self.showMessageDialog("Sem conexão à internet.")
+            return
         info.pop(self.listWidget.currentItem().text(), None)
         self.updateList()
         self.updateFile()
@@ -143,6 +149,9 @@ class Window(QMainWindow):
 
     def add_item(self):
         """Adicionar nova senha a lista"""
+        if not self.connected:
+            self.showMessageDialog("Sem conexão à internet.")
+            return
         user = self.userTextBox.text()
         password = self.passwordTextBox.text()
         site = self.siteTextBox.text()
@@ -151,9 +160,9 @@ class Window(QMainWindow):
             self.updateList()
             self.updateFile()
             self.showMessageDialog("Senha adicionada com sucesso.")
-            passwordTextBox.setText("")
-            userTextBox.setText("")
-            siteTextBox.setText("")
+            self.passwordTextBox.setText("")
+            self.userTextBox.setText("")
+            self.siteTextBox.setText("")
         else:
             self.showMessageDialog("Já existe um registro para esse site.")
 
@@ -202,39 +211,61 @@ def main():
         f.close()
     except:
         key = 0
-        drive_service = None
+    
+    connected = False
+    drive_service = None
 
     #Informações descriptografadas são salvas no dicionário info
     if key != 0:
-        with open("data.txt", "r") as data:
-            for line in data:
-                dec = Fernet(key).decrypt(bytes(line[2:-1], 'utf-8'))
-                res = re.search(pattern, str(dec))
-                try:
-                    info[res.group(3)] = (res.group(1), res.group(2))
-                except:
-                    pass
+        
         #Autenticacao utilizando credenciais no arquivo JSON ou arquivo PICKLE
-        creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    'credentials.json', SCOPES)
-                creds = flow.run_local_server(port=0)
-            with open('token.pickle', 'wb') as token:
-                pickle.dump(creds, token)
+        try:
+            creds = None
+            if os.path.exists('token.pickle'):
+                with open('token.pickle', 'rb') as token:
+                    creds = pickle.load(token)
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        'credentials.json', SCOPES)
+                    creds = flow.run_local_server(port=0)
+                with open('token.pickle', 'wb') as token:
+                    pickle.dump(creds, token)
+        
+            #Autenticação google drive
+            drive_service = build('drive', 'v3', credentials=creds)
+            connected = True
 
-        #Autenticação google drive
-        drive_service = build('drive', 'v3', credentials=creds)
+        except Exception as e:
+            print("Não foi possível conectar ao Drive. Utilizandos dados locais.")
+
+        #Se houver conexão, atualizar dados locais através do drive
+        if connected:
+            request = drive_service.files().get_media(fileId=DATA_FILE_ID)
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+
+            fh.seek(0)
+            data = fh.read()
+            
+            with open('data', 'wb') as file:
+                file.write(data)
+
+        #Lendo dados salvos localmente, após tentar atualiza-los
+        with open("data", "r") as data:
+            for line in data:
+                dec = Fernet(key).decrypt(bytes(line, 'utf-8')).decode('utf-8')
+                pwd, user, site = dec.strip().split(',')
+                info[site] = (pwd, user)
 
     #Instanciação da GUI
     app = QApplication(sys.argv)
-    win = Window(drive_service, key)
+    win = Window(drive_service, key, connected)
     win.show()
     sys.exit(app.exec_())
 
