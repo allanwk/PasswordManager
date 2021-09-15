@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #Dependencias para a GUI
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
@@ -29,9 +30,11 @@ pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
 #Dicionario para armazenar as informacoes de senhas
 info = {}
 
-#Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets)
+#Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets),
+#caminho do projeto
 load_dotenv()
 DATA_FILE_ID = os.environ.get("DATA_FILE_ID")
+PROJECT_DIR = os.environ.get("PROJECT_DIR")
 
 #Escopos de autorização da API do Google Drive
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -206,7 +209,7 @@ def main():
     invalidando qualquer operação na GUI.
     """
     try:
-        f = open("F:/text.txt", "r")
+        f = open("/media/allan/KINGSTON/text.txt", "r")
         key = f.readline().encode()
         f.close()
     except:
