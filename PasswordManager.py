@@ -23,10 +23,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from dotenv import load_dotenv
 
-"""Padrao para identificar site, senha e usuario no arquivo
-data apos descriptografado"""
-pattern = r"([a-zA-Z0-9!@#$%&* -]*),([a-zA-Z0-9@\.]*),(\w*)"
-
 #Dicionario para armazenar as informacoes de senhas
 info = {}
 
@@ -34,7 +30,6 @@ info = {}
 #caminho do projeto
 load_dotenv()
 DATA_FILE_ID = os.environ.get("DATA_FILE_ID")
-PROJECT_DIR = os.environ.get("PROJECT_DIR")
 
 #Escopos de autorização da API do Google Drive
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -209,7 +204,10 @@ def main():
     invalidando qualquer operação na GUI.
     """
     try:
-        f = open("/media/allan/KINGSTON/text.txt", "r")
+        if os.name == 'posix':
+            f = open("/media/allan/KINGSTON/text.txt", "r")
+        else:
+            f = open("F:/text.txt", "r")
         key = f.readline().encode()
         f.close()
     except:
