@@ -266,11 +266,12 @@ def main():
     #Instanciação da GUI
     app = QApplication(sys.argv)
     win = Window(drive_service, key, connected)
-    win.show()
+    
     
     #Traz a janela para frente
     win.setWindowState(win.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
     win.activateWindow()
+    win.show()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
