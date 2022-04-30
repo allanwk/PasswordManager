@@ -270,6 +270,7 @@ def main():
     
     #Traz a janela para frente
     win.setWindowState(win.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+    win.activateWindow()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
