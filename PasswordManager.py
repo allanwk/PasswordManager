@@ -43,7 +43,6 @@ class Window(QMainWindow):
     def __init__(self, drive_service, key, connected):
         """Inicialização da janela principal"""
         super(Window, self).__init__()
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
         self.key = key
