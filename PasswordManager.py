@@ -11,6 +11,7 @@ import re
 from time import sleep
 import random
 import string
+import psutil
 
 #Dependencias Google Drive API
 import os.path
@@ -42,6 +43,7 @@ class Window(QMainWindow):
     def __init__(self, drive_service, key, connected):
         """Inicialização da janela principal"""
         super(Window, self).__init__()
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
         self.key = key
@@ -199,19 +201,16 @@ class Window(QMainWindow):
 
 
 def main():
-    """Buscando chave de acesso no token (pen drive)
+    """Buscando chave de acesso no token (pen drives disponiveis)
     Caso não seja encontrada, a chave recebe o valor 0, e o drive_service None, 
     invalidando qualquer operação na GUI.
     """
-    try:
-        if os.name == 'posix':
-            f = open("/media/allan/KINGSTON/text.txt", "r")
-        else:
-            f = open("F:/text.txt", "r")
-        key = f.readline().encode()
-        f.close()
-    except:
-        key = 0
+   
+    drives = psutil.disk_partitions()
+    for drive in drives:
+        if os.path.exists(drive[0] + 'text.txt') and 'removable' in drive[3]:
+            with open(drive[0] + 'text.txt') as f:
+                key = f.readline().encode()
     
     connected = False
     drive_service = None
