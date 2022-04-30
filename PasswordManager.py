@@ -208,8 +208,9 @@ def main():
    
     drives = psutil.disk_partitions()
     for drive in drives:
-        if os.path.exists(drive[0] + 'text.txt') and 'removable' in drive[3]:
-            with open(drive[0] + 'text.txt') as f:
+        path = os.path.join(drive[1], 'text.txt')
+        if os.path.exists(path):
+            with open(path) as f:
                 key = f.readline().encode()
     
     connected = False
