@@ -205,6 +205,7 @@ def main():
     Caso não seja encontrada, a chave recebe o valor 0, e o drive_service None, 
     invalidando qualquer operação na GUI.
     """
+    key = 0
    
     drives = psutil.disk_partitions()
     for drive in drives:
