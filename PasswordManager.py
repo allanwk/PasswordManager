@@ -109,7 +109,7 @@ class Window(QMainWindow):
     def updateList(self):
         """Atualizar a visualização da lista de senhas"""
         self.listWidget.clear()
-        for dict_key in info:
+        for dict_key in sorted(info.keys()):
             item = QListWidgetItem(dict_key)
             self.listWidget.addItem(item)
         
