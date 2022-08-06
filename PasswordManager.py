@@ -22,15 +22,11 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from dotenv import load_dotenv
 
 #Dicionario para armazenar as informacoes de senhas
 info = {}
 
-#Carregamento das variáveis de ambiente (IDs das planilhas do Google Sheets),
-#caminho do projeto
-load_dotenv()
-DATA_FILE_ID = os.environ.get("DATA_FILE_ID")
+DATA_FILE_ID = None
 
 #Escopos de autorização da API do Google Drive
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -207,12 +203,15 @@ def main():
     key = 0
    
     drives = psutil.disk_partitions()
+    creds_path = None
     for drive in drives:
-        path = os.path.join(drive[1], 'text.txt')
+        path = os.path.join(drive[1], 'pm/text.txt')
         if os.path.exists(path):
+            creds_path = os.path.join(drive[1], 'pm/credentials.json')
             with open(path) as f:
                 key = f.readline().encode()
-    
+                DATA_FILE_ID = f.readline().strip()
+
     connected = False
     drive_service = None
 
@@ -230,7 +229,7 @@ def main():
                     creds.refresh(Request())
                 else:
                     flow = InstalledAppFlow.from_client_secrets_file(
-                        'credentials.json', SCOPES)
+                        creds_path, SCOPES)
                     creds = flow.run_local_server(port=0)
                 with open('token.pickle', 'wb') as token:
                     pickle.dump(creds, token)
@@ -241,6 +240,7 @@ def main():
 
         except Exception as e:
             print("Não foi possível conectar ao Drive. Utilizandos dados locais.")
+            print("Erro específico: ", e)
 
         #Se houver conexão, atualizar dados locais através do drive
         if connected:
