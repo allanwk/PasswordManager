@@ -26,8 +26,6 @@ from google.auth.transport.requests import Request
 #Dicionario para armazenar as informacoes de senhas
 info = {}
 
-DATA_FILE_ID = None
-
 #Escopos de autorização da API do Google Drive
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
@@ -36,9 +34,10 @@ class Window(QMainWindow):
     a GUI renderiza apenas uma janela vazia, não permitindo operações.
     """
     
-    def __init__(self, drive_service, key, connected):
+    def __init__(self, drive_service, key, DATA_FILE_ID, connected):
         """Inicialização da janela principal"""
         super(Window, self).__init__()
+        self.DATA_FILE_ID = DATA_FILE_ID
         self.setGeometry(200,200,435,275)
         self.setWindowTitle("Gerenciador de senhas")
         self.key = key
@@ -109,7 +108,7 @@ class Window(QMainWindow):
     def updateList(self):
         """Atualizar a visualização da lista de senhas"""
         self.listWidget.clear()
-        for dict_key in sorted(info.keys()):
+        for dict_key in sorted(info.keys(), key=lambda k: k.upper()):
             item = QListWidgetItem(dict_key)
             self.listWidget.addItem(item)
         
@@ -122,10 +121,7 @@ class Window(QMainWindow):
                 data.writelines(lines)
             
             media = MediaFileUpload("./data")
-            file = self.drive_service.files().update(
-                                        media_body=media,
-                                        fileId=DATA_FILE_ID,
-                                        fields='id').execute()
+            file = self.drive_service.files().update(media_body=media, fileId=self.DATA_FILE_ID, fields='id').execute()
 
     def copy_password(self):
         """Copiar a senha selecionada para a área de tranferência"""
@@ -266,8 +262,7 @@ def main():
 
     #Instanciação da GUI
     app = QApplication(sys.argv)
-    win = Window(drive_service, key, connected)
-    
+    win = Window(drive_service, key, DATA_FILE_ID, connected)
     
     #Traz a janela para frente
     win.setWindowState(win.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
